@@ -151,38 +151,53 @@ Demo: fib
 # don't run any tests, target individual benchmarks
 # -lines -pdf -nodecount=10 -focus=fib 
 # be careful about hiding things!
-
-
-* CPU profiling
-
-Demo: ascii
-
 # mention:
 #  can set CPU profiling rate
 
+
+* Memory profiling
+
+Demo: ascii
+
+# start with load
+# discover syscalls
+# remove syscalls
+
+# discover malloc
+# add ReportAllocs
+# do mem profiling
+# need -l
+# need -alloc_objects, discuss alternatives
+# discuss -memprofilerate
+
+# move on to encode
+# discover malloc
+# add ReportAllocs
+# mem profiling
+# need -l? nope.
+# need -runtime flag to pprof
+# aha! string concatenation. Use a bytes.Buffer. Will discuss more later. common problem.
+
+# syscall: look at syscalls. malloc: look at allocation. mutex/futex/channel-y things? look at blocking. We'll get to that.
+
+
+* Profiling gotchas
+
+- Don't run multiple profilers at once.
+- Don't run tests when profiling.
+- If the output doesn't make sense, poke around or ask for help.
+
+# pprof has a crappy UI
+
+
+* Block profiling
+
+Demo: ngram
 
 * END OF DEVELOPED SLIDES
 
 * More content...
 
-03. Profiling
-	0302 CPU profiling a benchmark
-		preventing inlining, setting cpu profiling rate
-		Cues that other kinds of profiling are helpful:
-		Lots of time spent in GC, channel/sync ops, syscalls.
-		Don't use multiple profilers at once.
-		Don't run tests when profiling, because the whole
-		execution is profiled (example: strconv package).
-	0303 Tour of pprof
-		Command line interface, pdf/image generation, web
-		Interpreting the numbers
-		-cum, -nodefraction, -nodecount
-		-focus and -ignore
-		-functions/-files/-lines/-addresses
-		Lots more: go tool pprof -h
-	0304 Memory profiling a benchmark
-		-memprofile, -memprofilerate
-		-alloc_space/-alloc_objects/-inuse_space/-inuse_objects
 	0305 Whole program profiling
 		runtime package profiling hooks, ReadMemStats
 		net/http/pprof, expvar packages.
@@ -322,6 +337,7 @@ Demo: ascii
 
 # Buffer i/o. Pass giant values using pointers.
 # Read the docs, pay attention to loops, use the most recent version of Go.
+# stream instead of buffering
 
 
 * Good habits, part 1
