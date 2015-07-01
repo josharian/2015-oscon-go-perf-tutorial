@@ -124,8 +124,197 @@ Demo: ngram
 # tip: Use rand.Zipf to simulate real load
 
 
+* Profiling
+
+* Hello, profiling
+
+- Where have all the cycles gone?
+- Support built into the runtime
+- `go`tool`pprof`, graphviz
+- OS X sadness
+
+
+# helps you understand you program's performance via instrumentation
+# different kinds of profiling: cpu, memory, block profiling, tracing
+# cpu works by sampling, with support from the OS; OS X needs a patch
+# other kinds of profiling work using instrumentation in the runtime
+# cpu is efficient, can run on live production server, memory less so
+# different kinds of profiling interfere with each other
+
+
+* CPU profiling
+
+Demo: fib
+
+# show basic usage: -cpuprofile, -outputdir
+# saves binary
+# don't run any tests, target individual benchmarks
+# -lines -pdf -nodecount=10 -focus=fib 
+# be careful about hiding things!
+
+
+* CPU profiling
+
+Demo: ascii
+
+# mention:
+#  can set CPU profiling rate
+
 
 * END OF DEVELOPED SLIDES
+
+* More content...
+
+03. Profiling
+	0302 CPU profiling a benchmark
+		preventing inlining, setting cpu profiling rate
+		Cues that other kinds of profiling are helpful:
+		Lots of time spent in GC, channel/sync ops, syscalls.
+		Don't use multiple profilers at once.
+		Don't run tests when profiling, because the whole
+		execution is profiled (example: strconv package).
+	0303 Tour of pprof
+		Command line interface, pdf/image generation, web
+		Interpreting the numbers
+		-cum, -nodefraction, -nodecount
+		-focus and -ignore
+		-functions/-files/-lines/-addresses
+		Lots more: go tool pprof -h
+	0304 Memory profiling a benchmark
+		-memprofile, -memprofilerate
+		-alloc_space/-alloc_objects/-inuse_space/-inuse_objects
+	0305 Whole program profiling
+		runtime package profiling hooks, ReadMemStats
+		net/http/pprof, expvar packages.
+		Dave Cheney's package.
+		Run runtime.GC before exit.
+	0306 Profiling concurrent code
+		-blockprofile, -blockprofilerate
+		Matters for scaling to more CPUs.
+		What kind of blocking is ok? time.Ticker, sync.WaitGroup.
+	0307 Execution tracing
+		Tour of tracing.
+		Tracing is brand new, and I'm not super familiar with it.
+		This may require two chapters,
+		or grow into a whole set of chapters of its own. TBD.
+
+04. string and []byte
+	0401 string and []byte: Why it matters
+		What they are, how they're represented under the hood.
+		How they differ, what happens when you convert.
+		Cheap vs expensive operations.
+	0402 Basic techniques
+		Delay or eliminate conversions. strings vs bytes package.
+		Write into a bytes.Buffer to build strings.
+		Use concat, strconv, etc. instead of fmt.Sprintf.
+		If there's a small set of possibilities,
+		pick the string rather than building it.
+		io.WriteString.
+		Slice before converting.
+		Read the docs.
+	0403 Advanced techniques
+		API design.
+		Compiler optimizations: map key, range expression, concat, comparisons.
+		Interning strings.
+		Reusing bytes.Buffers.
+		unsafe.
+
+05. Memory optimization
+	0501 Intro to allocation and GC
+		What is allocation? Why does it matter?
+		Allocation size vs number of allocations.
+		Don't have to (can't!) avoid all allocations.
+		What kinds of things allocate?
+		Common sources: Data growth (append, concat, map assign),
+		string/[]byte conversions, interface conversions.
+		Escape analysis, gcflags=-m
+	0502 Basic techniques
+		Provide initial capacity estimates for data structures.
+		Avoid string/[]byte conversions.
+		Reuse objects. Maintain a free list.
+		Stream instead of buffering.
+		API design for BYO Buffer.
+		Don't use pointers if you don't need them.
+		(Example: tristate int instead of *bool.)
+		(Example: bytes.Buffer field instead of *bytes.Buffer.)
+		Avoid gratuitous boxing, reflection, and indirection.
+	0503 Advanced techniques
+		Pre-allocate backing array for slice.
+		sync.Pool
+		Combine allocations.
+		Replace pointers with indices into an array.
+		Struct layout optimization
+		//go:noescape (maybe)
+
+06. Concurrency optimization
+	0601 Basic techniques
+		Primary goal is correctness and clarity. That is hard enough!
+		Reduce critical sections.
+		Use sufficiently buffered channels.
+		Use mutexes instead of channels.
+		Try sync.RWMutex instead of sync.Mutex.
+		Avoid thrashing by gating filesystem access.
+		Finding leaking goroutines: goroutine profiler, or SIGQUIT.
+	0602 Advanced techniques
+		Partition shared data structures, so parts of them can be locked independently.
+		Batch updates/changes/access to critical sections. Example: testing.PB.
+		Avoid false sharing by padding data structures.
+		atomic.Value, atomic operations on ints.
+
+07. Advanced optimization techniques
+	0701 Compiler flags
+		Main goal is to learn and experiment.
+		How to use, how to interpret results.
+		Flags: -h -m -S -l -N -g -B
+	0702 Runtime hooks
+		GODEBUG=gctrace=1
+		GODEBUG=allocfreetrace=1
+		GODEBUG=schedtrace=1000
+		GOGC
+		Gosched
+	0703 Assembly, cgo
+		When and why (not) to use.
+		Overhead and granularity.
+		Show examples.
+		Use vet to catch obvious mistakes.
+	0704 Code generation
+		Use to avoid interfaces, callbacks, or reflection.
+		Use to generate hard to read code that is still correct. (e.g. stringer)
+		Use to unroll loops or calculations or to generate pre-calculated tables.
+	0705 Micro-optimizations
+		Caution! Make sure this is really important.
+		Special idioms: optimized memclear, rotate instruction.
+		Use arrays instead of maps for lookups with small int keys.
+		Use a slice instead of a map for very small data structures.
+		Defer can be expensive -- manually unwind.
+
+08. Other kinds of optimization
+	0801 Optimizing binary size
+		Drop DWARF, symbol tables.
+		Take care with large static data,
+		particularly large static arrays.
+		go tool nm and friends.
+		Millions of tiny strings: slice a big string.
+	0802 Optimizing build time
+		go install vs go build
+		Split up crazy long functions
+		Separate giant tables from code with lots of churn
+		File issues!
+
+09. Conclusion
+	0901 Resourses and Where to Go From Here
+		golang-nuts, Dmitry's work, stdlib
+		Profile your own code. Know when to stop.
+		Pick an open source project and
+		find and fix a major performance problem.
+	0902 Wrap Up
+		What we covered. Your newfound abilities.
+		Reminder of basic principles: Write simple,
+		clear code, write tests, develop good habits,
+		go deep when it matters.
+
+
+
 
 
 
