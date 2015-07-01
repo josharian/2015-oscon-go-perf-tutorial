@@ -1,0 +1,237 @@
+Go Performance Tutorial
+
+Josh Bleecher Snyder
+Braintree/PayPal
+josharian@gmail.com
+@offbymany
+
+# introduce myself, contributions to Go, etc.
+
+
+* Plan
+
+- Introduction and philosophy
+- Tools: Benchmarks, profiles
+- Techniques: string/[]byte, memory, concurrency
+
+- Break
+
+- Advanced tools and techniques
+- Other kinds of optimization
+- Wrap-up and stump the chump
+
+
+* Introduction and philosophy
+
+# lots to say, so there will be interludes throughout
+# but here are the key points
+
+
+* Write simple, clear code
+
+- Usually the fastest anyway
+
+.link https://codereview.appspot.com/131840043
+
+- Easy to see optimization opportunities
+- Compiler and runtime optimized for normal code
+- Take it easy on abstraction (reflection, interfaces)
+
+"All problems in computer science can be solved by another level of indirection, except of course for the problem of too many indirections." - David Wheeler
+
+* Write good tests and use version control
+
+Enables experimentation.
+
+"If you're not going to get the right answer, I don't see the point. I can make things very fast if they don't have to be correct." - Russ Cox
+
+
+* Develop good habits
+
+"Programmers waste enormous amounts of time thinking about, or worrying about, the speed of noncritical parts of their programs, and these attempts at efficiency actually have a strong negative impact when debugging and maintenance are considered. We should forget about small efficiencies, say about 97% of the time: premature optimization is the root of all evil. Yet we should not pass up our opportunities in that critical 3%." - Donald Knuth
+
+# we'll discuss good habits as we go
+# get the basics right: caching, lazy initialization, better algorithms
+
+
+* Know thy tools, at all levels
+
+- Can you cheat? Does it matter?
+- Algorithms
+- Language
+- Benchmarking and profiling
+- Machine and OS: Disk vs network vs memory
+
+"People who are more than casually interested in computers should have at least some idea of what the underlying hardware is like. Otherwise the programs they write will be pretty weird." - Donald Knuth
+
+
+* The easiest wins around
+
+- Use the most recent release of Go!
+- Use more hardware.
+
+
+* Benchmarking
+
+
+* Hello, benchmarks
+
+Demo: package fib
+
+# how to write, run, and interpret a benchmark
+# adaptive benchtime
+# -bench=regexp, -run=NONE, -benchtime
+# full power of language at disposal
+# careful about which benchmarks you write
+# beware microbenchmarks
+
+* Tour of testing.B and 'go test' flags
+
+Demo: word length count
+
+# b.SetBytes
+# -benchmem, b.ReportAllocs
+# b.Errorf, b.Logf, -v
+# danger: these skew benchmarking! demo with ReportAllocs
+# b.ResetTimer, b.StopTimer, b.StartTimer
+# show Go 1.4 vs Go tip (1.5)
+
+
+* Comparing benchmarks
+
+- benchcmp
+
+	go get -u golang.org/x/tools/cmd/benchcmp
+
+- benchviz
+
+	go get -u github.com/ajstarks/svgo/benchviz
+
+- benchstat
+
+	go get -u rsc.io/benchstat
+
+# hope for more in 1.6
+
+
+* Benchmarking concurrent code
+
+Demo: ngram
+
+# -cpu, b.PB, b.RunParallel, b.SetParallelism
+# how to set up global state and goroutine-local state
+# what it does under the hood
+# tip: Use rand.Zipf to simulate real load
+
+
+
+* END OF DEVELOPED SLIDES
+
+
+
+* HABITS TO COVER:
+
+# Buffer i/o. Pass giant values using pointers.
+# Read the docs, pay attention to loops, use the most recent version of Go.
+
+
+* Good habits, part 1
+
+- Write clear code
+# makes it easier to see optimization opportunities
+# clear code is usually simple, and simple is usually fast
+
+- Write good tests
+# facilitates rapid experimentation
+
+- Read the docs
+# they usually provide perf info when important
+# they tell you whether you can reuse/share things
+# particularly the testing package -- there's lots there
+
+- Pay attention to loops
+
+
+* Good habits, part 2
+
+- Know what allocates
+# you don't have to avoid allocations necessarily; just be aware
+
+- Pay attention to data growth: append, concat, map assign
+
+- Provide initial capacity estimates when reasonable
+
+- Pay attention to string/[]byte conversions
+# they are an alloc+copy
+
+
+* Good habits, part 3
+
+- Stream when possible
+# json.NewEncoder instead of json.Marshal)
+
+- Buffer I/O
+# each syscall has a cost
+
+- Careful API design
+# allow streaming, allow Bring Your Own Buffer
+
+- Avoid gratuitous boxing, reflection, and indirection
+# they come with significant cost to perf and readability
+# you frequently don't need them
+
+- Use mutexes instead of channels for simple shared state
+
+
+* I'm stuck
+
+- Experiment, then analyze
+
+# RWMutex sometimes slower than Mutex
+# small maps sometimes slower than slices
+
+- Email golang-nuts (but do your homework first)
+
+# but do your homework first
+
+- Beware microbenchmarks
+
+# always keep the context in mind
+# gather data to help you decide; Go is machine-friendly, so this is easy
+
+- Read "Debugging performance issues in Go programs" by Dmitry Vyukov
+
+
+* Stump the chump
+
+
+* Concurrent performance
+
+- testing.PB and RunParallel
+
+- Block profiling
+
+- Free lists and sync.Pool
+
+# local vs shared; when to use
+
+- Partition shared data structures
+
+- Use buffered channels
+
+
+* Advanced techniques
+
+- Know thy gcflags: -S, -B, -m
+
+# discover with 'go tool 6g -h'
+
+- Defer can be expensive
+
+- Amortize expensive work
+
+- Combine allocations
+
+- Scheduler trace, gc trace
+
+- Codegen for specialization
