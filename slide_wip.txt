@@ -6,11 +6,6 @@ SLIDE WIP
 * END OF DEVELOPED SLIDES
 
 
-04. string and []byte
-
-	0403 Advanced techniques
-		Reusing bytes.Buffers.
-
 05. Memory optimization
 	0501 Intro to allocation and GC
 		What is allocation? Why does it matter?

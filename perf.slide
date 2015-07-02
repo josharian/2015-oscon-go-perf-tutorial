@@ -399,15 +399,10 @@ And implement WriteString for your io.Writers:
 
 * string and []byte
 
-Use concatenation and strconv instead of fmt.Sprintf for simple things.
-
-.play stringbytes/strconv.go /func Benchmark/,/^$/
-
-
-* string and []byte
-
 If the set of choices is small, pick a string rather than building it.
 (Or use stringer: golang.org/x/tools/cmd/stringer.)
+
+# TODO: Example code with benchmark
 
 
 * string and []byte
@@ -419,7 +414,9 @@ Slice after converting.
 
 * string and []byte
 
-.play stringbytes/reuse.go /pool/,/func _/
+Use concatenation and strconv instead of fmt.Sprintf for simple things.
+
+.play stringbytes/strconv.go /func Benchmark/,/^$/
 
 
 * string and []byte
@@ -429,6 +426,29 @@ Design your APIs to allow reduced garbage.
 - Provide []byte and string variants.
 - Use io.Reader and io.Writer instead of buffers.
 - BYO buffer.
+
+
+* string and []byte
+
+Techniques:
+
+- Reuse buffers.
+- Take advantage of compiler optimizations.
+- Intern strings.
+
+# distinguish habits from techniques:
+# habits are things you should usually do;
+# techniques are things to use when profiling says you need to optimize.
+
+# compiler optimization overlaps with "delay conversion"
+
+
+* string and []byte
+
+.play stringbytes/reuse.go /pool/,/func _/
+
+# can also reuse with a local free list. do whatever is appropriate.
+# note that sync.Pool's efficiency is implementation-dependent.
 
 
 * string and []byte
@@ -456,6 +476,8 @@ Conversion optimizations in Go 1.5 include:
 Convert as late as possible to enable them to work.
 (Future work may change that.)
 
+More are possible. Those that work well on normal code will eventually be implemented.
+
 
 * string and []byte
 
@@ -468,7 +490,20 @@ The map key optimization is particularly interesting.
 
 .play stringbytes/intern.go /interned/,/func _/
 
-# Advanced technique! Use with great care and caution.
-# not thread safe (but see github.com/josharian/intern).
-# NEVER RELEASES memory
 
+* string and []byte
+
+Be careful with interning!
+
+- Advanced technique. Use with caution, only when necessary.
+- Depends on compiler version.
+- *Manual*memory*management!* Ewwwwww.
+- Not thread safe. (But see github.com/josharian/intern for a hack.)
+
+
+* Optimizing memory usage
+
+
+* Optimizing memory usage
+
+TODO
