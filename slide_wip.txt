@@ -5,39 +5,11 @@ SLIDE WIP
 
 * END OF DEVELOPED SLIDES
 
-* More content...
-
-	0305 Whole program profiling
-		runtime package profiling hooks, ReadMemStats
-		net/http/pprof, expvar packages.
-		Dave Cheney's package.
-		Run runtime.GC before exit.
-	0307 Execution tracing
-		Tour of tracing.
-		Tracing is brand new, and I'm not super familiar with it.
-		This may require two chapters,
-		or grow into a whole set of chapters of its own. TBD.
 
 04. string and []byte
-	0401 string and []byte: Why it matters
-		What they are, how they're represented under the hood.
-		How they differ, what happens when you convert.
-		Cheap vs expensive operations.
-	0402 Basic techniques
-		Delay or eliminate conversions. strings vs bytes package.
-		Write into a bytes.Buffer to build strings.
-		Use concat, strconv, etc. instead of fmt.Sprintf.
-		If there's a small set of possibilities,
-		pick the string rather than building it.
-		io.WriteString.
-		Slice before converting.
-		Read the docs.
+
 	0403 Advanced techniques
-		API design.
-		Compiler optimizations: map key, range expression, concat, comparisons.
-		Interning strings.
 		Reusing bytes.Buffers.
-		unsafe.
 
 05. Memory optimization
 	0501 Intro to allocation and GC

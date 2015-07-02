@@ -12,10 +12,10 @@ josharian@gmail.com
 
 - Introduction and philosophy
 - Tools: Benchmarks, profiles
-- Techniques: string/[]byte, memory, concurrency
 
 - Break
 
+- Techniques: string/[]byte, memory, concurrency
 - Advanced tools and techniques
 - Other kinds of optimization
 - Wrap-up and stump the chump
@@ -284,4 +284,191 @@ So don't use `http.DefaultServeMux`.
 	// use pprofMux to serve the pprof handles
 
 Or use a single non-default `ServeMux` but insert http handler middleware.
+
+
+* Execution tracing
+
+- New as of Go 1.5! Google for "Go execution tracer" to see the design doc.
+- A few rough edges still.
+- Incredibly detailed and powerful, with all the good and bad that that brings.
+
+
+* Execution tracing
+
+Demo: ngram
+
+# go test -bench=. -trace=trace.out -benchtime=50ms
+# go tool trace ngram.test trace.out
+
+# before and after
+# observe blocked goroutines before, interleaved goroutines after
+
+# play with it and explore. I still am.
+
+
+* Break
+
+# switch to present14!
+
+
+* Techniques and habits
+
+
+* string and []byte
+
+Common source of performance problems.
+Easy to learn good habits.
+Helps to know what's happening under the hood.
+
+
+* string and []byte
+
+*string*
+
+- basic type
+- interpreted as UTF-8
+- _immutable_
+
+*[]byte*
+
+- just another slice type
+- no particular interpretation
+- _mutable_
+
+.play stringbytes/mutable.go /func set/,/^}/
+
+
+* string and []byte
+
+Above all, the compiler and runtime must be correct.
+Speed is a bonus.
+
+In the general case, converting between string and []byte requires an alloc and a copy.
+
+.play stringbytes/convert.go /func Benchmark/,/^}/
+
+
+* string and []byte
+
+*string*
+
+- slicing is very cheap and safe
+- concatenation is expensive (alloc + copy x 2)
+
+*[]byte*
+
+- slicing is very cheap but not always safe
+- append is sometimes expensive (sometimes alloc, always copy x 1, sometimes copy x 2)
+
+
+* string and []byte
+
+Good habits:
+
+- Live in just one world (modulo code clarity and correctness).
+- Convert as late as possible.
+- Pay attention to concatenation, particularly in loops.
+
+# that's why we have parallel strings and bytes packages
+# now specific techniques/habits
+# these are not rules. clarity trumps, but these are generally equally clear.
+# these might only matter in loops. but get in the habit of writing performant code.
+
+
+* string and []byte
+
+Use a bytes.Buffer to build strings.
+
+.play stringbytes/buf.go /func Benchmark/,/^$/
+
+# important change for c2go compiler performance!
+
+
+* string and []byte
+
+Use dedicated APIs:
+
+- "io.Writer".Write vs io.WriteString
+- "bufio.Scanner".Bytes vs "bufio.Scanner".Text
+- "bytes.Buffer".Bytes vs "bytes.Buffer".String
+
+And implement WriteString for your io.Writers:
+
+	func WriteString(s string) (n int, err error)
+
+
+* string and []byte
+
+Use concatenation and strconv instead of fmt.Sprintf for simple things.
+
+.play stringbytes/strconv.go /func Benchmark/,/^$/
+
+
+* string and []byte
+
+If the set of choices is small, pick a string rather than building it.
+(Or use stringer: golang.org/x/tools/cmd/stringer.)
+
+
+* string and []byte
+
+Slice after converting.
+
+.play stringbytes/slice.go /Repeat/,/func _/
+
+
+* string and []byte
+
+.play stringbytes/reuse.go /pool/,/func _/
+
+
+* string and []byte
+
+Design your APIs to allow reduced garbage.
+
+- Provide []byte and string variants.
+- Use io.Reader and io.Writer instead of buffers.
+- BYO buffer.
+
+
+* string and []byte
+
+Pop quiz: How many allocs/op in this benchmark?
+
+.play stringbytes/convertnoescape.go /Benchmark/,/^}/
+
+# answer: it varies!
+# Go 1.4: 1
+# Go 1.5: 0
+# Go 1.5, with a longer byte slice: 1!
+# explain escape analysis, compiler optimizations
+
+
+* string and []byte
+
+Conversion optimizations in Go 1.5 include:
+
+- map keys
+- range expressions
+- concatenation
+- comparisons
+
+Convert as late as possible to enable them to work.
+(Future work may change that.)
+
+
+* string and []byte
+
+The map key optimization is particularly interesting.
+
+.play stringbytes/mapkey.go /Repeat/,/func _/
+
+
+* string and []byte
+
+.play stringbytes/intern.go /interned/,/func _/
+
+# Advanced technique! Use with great care and caution.
+# not thread safe (but see github.com/josharian/intern).
+# NEVER RELEASES memory
 
