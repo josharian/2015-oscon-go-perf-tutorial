@@ -1,3 +1,0 @@
-BenchmarkWordLengths-8	  100000	     20923 ns/op	  33.46 MB/s	    4320 B/op	       4 allocs/op
-ok  	_/Users/jbleechersnyder/talks/2015/oscon-go-perf/word	4.766s
-(tip)12:35:23 ~/talks/2015/oscon-go-perf/word$ go test -b

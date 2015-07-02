@@ -1,2 +1,0 @@
-BenchmarkWordLengths-8	  100000	     19309 ns/op	  36.25 MB/s	    4320 B/op	       4 allocs/op
-ok  	_/Users/jbleechersnyder/talks/2015/oscon-go-
