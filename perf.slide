@@ -93,6 +93,7 @@ Demo: word length count
 # -benchmem, b.ReportAllocs
 # b.Errorf, b.Logf, -v
 # danger: these skew benchmarking! demo with ReportAllocs
+# and wow, reflect.DeepEqual is expensive!
 # b.ResetTimer, b.StopTimer, b.StartTimer
 # show Go 1.4 vs Go tip (1.5)
 
@@ -141,6 +142,8 @@ Demo: ngram
 # cpu is efficient, can run on live production server, memory less so
 # different kinds of profiling interfere with each other
 
+# NetBSD also has (had?) broken profiling
+
 
 * CPU profiling
 
@@ -187,12 +190,103 @@ Demo: ascii
 - Don't run tests when profiling.
 - If the output doesn't make sense, poke around or ask for help.
 
-# pprof has a crappy UI
+# pprof has a crappy UI. Live with it. :(
 
 
 * Block profiling
 
 Demo: ngram
+
+# easy demo: -blockprofile=
+# discuss -blockprofilerate, -memprofilerate
+# there is a way to change cpu profile rate in runtime package but too fast can't happen (OS support, expense of walking the stack) and the default is pretty good
+# discuss ok/expected blocking: time.Ticker, sync.WaitGroup
+
+
+* Other kinds of profiling
+
+In package `runtime/pprof`:
+
+- `goroutine`: helpful for finding sources of leaking goroutines
+- `threadcreate` helpful for debugging runaway thread creation (usually syscalls or cgo)
+
+# TODO: Expand?
+
+Basic memory stats available in package `runtime`: `ReadMemStats`
+
+.link https://golang.org/pkg/runtime/#MemStats
+
+
+* Whole program profiling
+
+Set up first thing in `func`main`.
+
+Use `runtime` and `runtime/pprof`...but it is a pain.
+
+# Mention gotchas like flushing and closing the files,
+# calling runtime.GC before exit, etc.
+
+Dave Cheney made a nice helper package:
+
+	go get -u github.com/pkg/profile
+
+.link https://godoc.org/github.com/pkg/profile
+
+
+* Monitoring live servers
+
+Cheap enough to do in production!
+
+And easy, using `net/http/pprof`.
+
+	import _ "net/http/pprof"
+
+Use pprof to view CPU:
+
+	go tool pprof -pdf http://localhost:4001/debug/pprof/profile > o.pdf && open o.pdf
+
+Heap:
+
+	go tool pprof http://localhost:4001/debug/pprof/heap
+
+Goroutines:
+
+	go tool pprof http://localhost:4001/debug/pprof/goroutine
+
+See `net/http/pprof` docs.
+
+
+* Monitoring live servers
+
+Demo: present
+
+	go tool pprof -pdf http://localhost:4001/debug/pprof/goroutine > o.pdf && open o.pdf
+
+Oh goodness!
+
+.link https://github.com/golang/go/issues/11507
+
+
+* Protecting the net/http/pprof endpoints
+
+`net/http/pprof` registers endpoints with `http.DefaultServeMux`.
+
+So don't use `http.DefaultServeMux`.
+
+	serveMux := http.NewServeMux()
+	// use serveMux to serve your regular website
+
+	pprofMux := http.NewServeMux()
+	pprofMux.HandleFunc("/debug/pprof/", pprof.Index)
+	pprofMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	pprofMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	pprofMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	// use pprofMux to serve the pprof handles
+
+Or use a single non-default `ServeMux` but insert http handler middleware.
+
+# TODO: Expand? Demo?
+
 
 * END OF DEVELOPED SLIDES
 
@@ -203,10 +297,6 @@ Demo: ngram
 		net/http/pprof, expvar packages.
 		Dave Cheney's package.
 		Run runtime.GC before exit.
-	0306 Profiling concurrent code
-		-blockprofile, -blockprofilerate
-		Matters for scaling to more CPUs.
-		What kind of blocking is ok? time.Ticker, sync.WaitGroup.
 	0307 Execution tracing
 		Tour of tracing.
 		Tracing is brand new, and I'm not super familiar with it.
