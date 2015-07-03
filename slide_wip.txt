@@ -3,50 +3,7 @@ SLIDE WIP
 # TODO: Expand? Demo?
 
 
-* END OF DEVELOPED SLIDES
 
-
-05. Memory optimization
-	0501 Intro to allocation and GC
-		What is allocation? Why does it matter?
-		Allocation size vs number of allocations.
-		Don't have to (can't!) avoid all allocations.
-		What kinds of things allocate?
-		Common sources: Data growth (append, concat, map assign),
-		string/[]byte conversions, interface conversions.
-		Escape analysis, gcflags=-m
-	0502 Basic techniques
-		Provide initial capacity estimates for data structures.
-		Avoid string/[]byte conversions.
-		Reuse objects. Maintain a free list.
-		Stream instead of buffering.
-		API design for BYO Buffer.
-		Don't use pointers if you don't need them.
-		(Example: tristate int instead of *bool.)
-		(Example: bytes.Buffer field instead of *bytes.Buffer.)
-		Avoid gratuitous boxing, reflection, and indirection.
-	0503 Advanced techniques
-		Pre-allocate backing array for slice.
-		sync.Pool
-		Combine allocations.
-		Replace pointers with indices into an array.
-		Struct layout optimization
-		//go:noescape (maybe)
-
-06. Concurrency optimization
-	0601 Basic techniques
-		Primary goal is correctness and clarity. That is hard enough!
-		Reduce critical sections.
-		Use sufficiently buffered channels.
-		Use mutexes instead of channels.
-		Try sync.RWMutex instead of sync.Mutex.
-		Avoid thrashing by gating filesystem access.
-		Finding leaking goroutines: goroutine profiler, or SIGQUIT.
-	0602 Advanced techniques
-		Partition shared data structures, so parts of them can be locked independently.
-		Batch updates/changes/access to critical sections. Example: testing.PB.
-		Avoid false sharing by padding data structures.
-		atomic.Value, atomic operations on ints.
 
 07. Advanced optimization techniques
 	0701 Compiler flags

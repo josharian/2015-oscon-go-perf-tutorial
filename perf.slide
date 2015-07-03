@@ -15,8 +15,11 @@ josharian@gmail.com
 
 - Break
 
-- Techniques: string/[]byte, memory, concurrency
+- Habits and techniques: string/[]byte, memory, concurrency
 - Advanced tools and techniques
+
+- Break
+
 - Other kinds of optimization
 - Wrap-up and stump the chump
 
@@ -68,6 +71,7 @@ Enables experimentation.
 * The easiest wins around
 
 - Use the most recent release of Go!
+- Use the standard library.
 - Use more hardware.
 
 
@@ -316,12 +320,15 @@ Demo: ngram
 
 * string and []byte
 
+
+* string and []byte
+
 Common source of performance problems.
 Easy to learn good habits.
 Helps to know what's happening under the hood.
 
 
-* string and []byte
+* Under the hood
 
 *string*
 
@@ -338,7 +345,7 @@ Helps to know what's happening under the hood.
 .play stringbytes/mutable.go /func set/,/^}/
 
 
-* string and []byte
+* Correct conversions are expensive
 
 Above all, the compiler and runtime must be correct.
 Speed is a bonus.
@@ -348,7 +355,7 @@ In the general case, converting between string and []byte requires an alloc and 
 .play stringbytes/convert.go /func Benchmark/,/^}/
 
 
-* string and []byte
+* Shrink and grow
 
 *string*
 
@@ -361,9 +368,7 @@ In the general case, converting between string and []byte requires an alloc and 
 - append is sometimes expensive (sometimes alloc, always copy x 1, sometimes copy x 2)
 
 
-* string and []byte
-
-Good habits:
+* Good habits
 
 - Live in just one world (modulo code clarity and correctness).
 - Convert as late as possible.
@@ -375,7 +380,7 @@ Good habits:
 # these might only matter in loops. but get in the habit of writing performant code.
 
 
-* string and []byte
+* bytes.Buffer
 
 Use a bytes.Buffer to build strings.
 
@@ -384,20 +389,21 @@ Use a bytes.Buffer to build strings.
 # important change for c2go compiler performance!
 
 
-* string and []byte
+* APIs
 
 Use dedicated APIs:
 
+- bytes and strings packages
 - "io.Writer".Write vs io.WriteString
 - "bufio.Scanner".Bytes vs "bufio.Scanner".Text
 - "bytes.Buffer".Bytes vs "bytes.Buffer".String
 
-And implement WriteString for your io.Writers:
+Related: Implement WriteString for your io.Writers:
 
 	func WriteString(s string) (n int, err error)
 
 
-* string and []byte
+* Avoid building strings
 
 If the set of choices is small, pick a string rather than building it.
 (Or use stringer: golang.org/x/tools/cmd/stringer.)
@@ -405,21 +411,25 @@ If the set of choices is small, pick a string rather than building it.
 # TODO: Example code with benchmark
 
 
-* string and []byte
+* Order of operations
 
-Slice after converting.
+Convert last (usually).
+
+For example, slice after converting.
 
 .play stringbytes/slice.go /Repeat/,/func _/
 
+If you're slicing multiple times, there are trade-offs: Multiple small alloc+copy vs one large monolithic chunk of memory.
 
-* string and []byte
+
+* Easy on the Sprintf
 
 Use concatenation and strconv instead of fmt.Sprintf for simple things.
 
 .play stringbytes/strconv.go /func Benchmark/,/^$/
 
 
-* string and []byte
+* API design
 
 Design your APIs to allow reduced garbage.
 
@@ -428,9 +438,7 @@ Design your APIs to allow reduced garbage.
 - BYO buffer.
 
 
-* string and []byte
-
-Techniques:
+* Techniques
 
 - Reuse buffers.
 - Take advantage of compiler optimizations.
@@ -443,7 +451,7 @@ Techniques:
 # compiler optimization overlaps with "delay conversion"
 
 
-* string and []byte
+* Reuse buffers
 
 .play stringbytes/reuse.go /pool/,/func _/
 
@@ -451,7 +459,7 @@ Techniques:
 # note that sync.Pool's efficiency is implementation-dependent.
 
 
-* string and []byte
+* Convert last
 
 Pop quiz: How many allocs/op in this benchmark?
 
@@ -464,7 +472,7 @@ Pop quiz: How many allocs/op in this benchmark?
 # explain escape analysis, compiler optimizations
 
 
-* string and []byte
+* Compiler magic
 
 Conversion optimizations in Go 1.5 include:
 
@@ -476,26 +484,26 @@ Conversion optimizations in Go 1.5 include:
 Convert as late as possible to enable them to work.
 (Future work may change that.)
 
-More are possible. Those that work well on normal code will eventually be implemented.
+More are possible. Those that work well on normal code may eventually be implemented.
 
 
-* string and []byte
+* Map keys
 
 The map key optimization is particularly interesting.
 
 .play stringbytes/mapkey.go /Repeat/,/func _/
 
 
-* string and []byte
+* Interning strings
 
 .play stringbytes/intern.go /interned/,/func _/
 
 
-* string and []byte
+* Caution
 
 Be careful with interning!
 
-- Advanced technique. Use with caution, only when necessary.
+- Advanced technique. Use with caution and only when necessary.
 - Depends on compiler version.
 - *Manual*memory*management!* Ewwwwww.
 - Not thread safe. (But see github.com/josharian/intern for a hack.)
@@ -504,6 +512,496 @@ Be careful with interning!
 * Optimizing memory usage
 
 
-* Optimizing memory usage
+* What is allocation?
 
-TODO
+Making a place to put stuff.
+
+- You can't avoid all allocation. That's ok!
+- Why it matters: allocation, zeroing/copying, GC, limited resource, impact on caches.
+- Number of allocations vs size of allocation.
+
+# Talking about allocs because they have are usually
+# a significant contributor to program performance.
+
+
+* What allocates?
+
+Lots of things, but it varies by compiler.
+In practice, there are no strict rules.
+
+Common sources of allocations are:
+
+- Data growth (append, concatenation, map assignment, stacks)
+- new, make, and &
+- string/[]byte conversion
+- Interface conversions
+- Closures
+
+Develop good habits, profile, and benchmark.
+
+
+* Escape analysis
+
+- Heap vs stack
+- Subtle, interacts with growable stacks and GC
+- Stack pressure vs heap
+- `-gcflags=-m`
+
+# Mostly, just know that it exists.
+# TODO: Ask folks to file issues?
+
+
+* Good habits
+
+- Avoid unnecessary data growth.
+- Avoid unnecessary string/[]byte conversions.
+- Design APIs that allow re-use.
+- Use values where you can.
+- Avoid gratuitous boxing, reflection, and indirection.
+
+# Stream instead of buffering.
+# Example of values: 0, 1, 2 instead of *bool.
+# Example of when not to use values: large arrays, particularly ranging over them.
+
+
+* Unnecessary data growth
+
+Buffer:
+
+	buf, err := ioutil.ReadAll(r)
+	// check err
+	var x T
+	err = json.Unmarshal(buf, &x)
+	// check err
+
+Stream:
+
+	dec := json.NewDecoder(r)
+	var x T
+	err := dec.Decode(&x)
+	// check err
+
+
+* Unnecessary/deep recursion
+
+Stacks take memory too. Stack growth is an alloc+copy+process.
+
+(Most data growth is alloc+copy.)
+
+
+* API design
+
+Use io.Reader and io.Writer.
+
+Also, io.Reader is a fine example itself!
+
+	type Reader interface {
+	    Read(p []byte) (n int, err error)
+	}
+
+It is hard to anticipate your users' needs. Give them the tools to be efficient if they need it.
+
+
+* Use values
+
+Value:
+
+	type OptBool uint8
+
+	const (
+		Unset = OptBool(iota)
+		SetFalse
+		SetTrue
+	)
+
+Pointer:
+
+	type OptBool *bool
+
+
+But take care with large values.
+
+	var a [10000]int{}
+	for _, i := range a {
+	}
+	fmt.Println(a)
+
+# not just copy cost, also impact on cache usage, etc.
+
+
+* Go easy on the abstraction
+
+- Reflect allocates heavily.
+- Most interface conversions allocate.
+- Creating closures usually allocates.
+
+# abstraction is ok, just not needless abstraction
+
+
+* Techniques
+
+- Provide initial capacity estimates for data structures.
+- Trade off allocation size and number of allocations.
+- Reuse objects. Maintain a free list or use sync.Pool.
+- Steal ideas from the standard library.
+
+
+* Initial capacity estimates
+
+
+Delayed alloc, but multiple allocs:
+
+	var s []int
+	for i := 0; i < 100; i++ {
+		s = append(s, i)
+	}
+
+
+Exactly one alloc, up front:
+
+	s := make([]int, 0, 100)
+	for i := 0; i < 100; i++ {
+		s = append(s, i)
+	}
+
+# Disagreement over whether this is habit vs technique.
+# TODO: Insert a benchmark here demoing.
+
+
+* Pre-allocate backing array
+
+    type Buffer struct {
+    	buf       []byte
+    	off       int
+    	runeBytes [utf8.UTFMax]byte
+    	bootstrap [64]byte
+    	lastRead  readOp
+    }
+
+runeBytes avoids allocation during WriteRune:
+
+	utf8.EncodeRune(b.runeBytes[0:], r)
+
+bootstrap avoids allocation for small buffers:
+
+	b.buf = b.bootstrap[0:]
+
+# trading off alloc size vs number of allocs
+# this about impact on cache
+
+
+* Reuse objects
+
+Local re-use is better:
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		// use err, n, buf
+		// look out: buf's contents will be overwritten in the next Read call
+	}
+
+
+Sometimes there's no context (type or scope) to allow re-use. Enter sync.Pool:
+
+	for {
+		buf := pool.Get().([]byte)
+		// use buf
+		// optional: clear buf for safety
+		for i := range buf {
+			buf[i] = 0
+		}
+		pool.Put(buf)
+	}
+
+# TODO: benchmark
+
+
+* Struct layout
+
+Go guarantees struct field alignment.
+
+	type Efficient struct {
+		a interface{}
+		b *int
+		c []int
+		d uint16
+		e bool
+		f uint8
+	}
+
+	type Inefficient struct {
+		e bool
+		a interface{}
+		f uint8
+		b *int
+		d uint16
+		c []int
+	}
+
+	var e Efficient
+	var i Inefficient
+	fmt.Println(unsafe.Sizeof(e), unsafe.Sizeof(i)) // 28 36
+
+# TODO: Turn into play program
+# Discuss cache impact
+# Discuss GC impact of having pointers first
+# Mention gc compiler and Nodes
+# Mention runtime alloc size classes
+# golang.org/cl/2179
+# golang.org/issue/10014
+# Won't happen automatically:
+#	No Go compiler should probably ever reorder struct fields.
+#	That seems like it is trying to solve a 1970s problem,
+#	namely packing structs to use as little space as possible.
+#	The 2010s problem is to put related fields near each other to reduce cache misses,
+#	and (unlike the 1970s problem) there is no obvious way
+#	for the compiler to pick an optimal solution.
+#	A compiler that takes that control away from the programmer
+#	is going to be that much less useful,
+#	and people will find better compilers. - Russ Cox
+
+
+* Optimizing concurrent programs
+
+
+* Optimizing concurrent programs
+
+Concurrency correctness is hard, even with Go.
+
+
+* Habits
+
+- Use mutexes instead of channels for simple shared state.
+- Minimize critical sections.
+- Don't leak goroutines.
+- Gate access to shared resources, particularly the file system.
+
+# not much else to say about mutexes vs channels
+# chann
+
+
+* Mutexes and channels
+
+Mutexes are good for mutual exclusion, like simple shared state. They are fast and simple in such cases.
+
+Channels are for everything else: Flow control, communication, coordination, select.
+
+# Honest truth: This is actually about readability and code clarity.
+# It just happens to also coincide with good performance advice.
+
+
+* Minimize critical sections
+
+Separate work that requires shared state from work that does not.
+Only hold the lock when you really need it. Refactor as needed.
+
+Before:
+
+	func (t *T) Update() {
+		t.Lock()
+		defer t.Unlock()
+		// expensive work that can be done independently
+		// update shared state
+	}
+
+After
+
+	func (t *T) Update() {
+		// expensive work that can be done independently
+		t.Lock()
+		defer t.Unlock()
+		// update shared state
+	}
+
+
+* Don't leak goroutines
+
+When you start a new goroutine, pause to ask when it will/how it will complete.
+
+	func doh(c chan int) {
+		go func() {
+			for i := range c {
+				// use i
+			}
+		}()
+		// who closes c? who calls doh?
+	}
+
+Goroutines are so cheap you might not notice leaks quickly.
+
+Profile or manually inspect the result of a SIGQUIT.
+
+
+* Gate access to shared resources
+
+It's easy to thrash the filesystem, make lots of threads, and create churn in the scheduler. It's also easy to prevent.
+
+	type gate chan bool
+
+	func (g gate) enter() { g <- true }
+	func (g gate) leave() { <-g }
+
+	type gatefs struct {
+		fs vfs.FileSystem
+		gate
+	}
+
+	func (fs gatefs) Open(p string) (vfs.ReadSeekCloser, error) {
+		fs.enter()
+		defer fs.leave()
+		// ...
+		return gatef{file, fs.gate}, nil
+	}
+
+	var fsgate = make(gate, 8)
+
+# not needed for the network
+# needed for cgo
+
+
+* Techniques
+
+- sync.RWMutex is only sometimes better than sync.Mutex.
+- Use buffered channels.
+- Partition shared data structures.
+- Batch work to amortize cost of lock acquisition.
+- Use sync/atomic.
+- Avoid false sharing by padding data structures.
+
+
+* sync.RWMutex vs sync.Mutex
+
+sync.RWMutex does strictly more work than sync.Mutex and has more complicated semantics.
+
+# Discuss writer starvation
+
+sync.RWMutext can help a lot, but it can also hurt. Profile and/or benchmark.
+
+# don't just automatically use RWMutex
+
+
+* Use buffered channels
+
+Buffered and unbuffered channels have different semantics and synchronization guarantees.
+
+Buffered channels are much cheaper, if both semantics work for you.
+
+# discuss queueing theory: buffer size only provides a buffer
+# buffer sizes come at a memory cost
+
+
+* Partition shared data structures
+
+Before:
+
+	type Counter struct {
+		mu sync.Mutex
+		m  map[string]int
+	}
+
+After:
+
+	const shards = 16
+
+	type Counter struct {
+		mu [shards]sync.Mutex
+		m  [shards]map[string]int
+	}
+
+Can reduce contention.
+
+Adds cost of hashing, increases data structure size, and depends on distribution of data. Measure with real world data. `rand.Zipf` can be helpful for benchmarks.
+
+
+* Batch work
+
+	// consumer
+	var sum int
+	for i := range c {
+		sum += i
+	}
+
+	// producer before
+	for !done {
+		sum := count(stuff)
+		c <- sum
+	}
+
+	// producer after
+	for !done {
+		sum := 0
+		for i := 0; i < 16; i++ {
+			sum += count(stuff)
+		}
+		c <- sum
+	}
+
+Can dramatically reduce contention, but not always applicable. Can introduce delays due to batching.
+
+# example: goroutine goids per-thread
+# example: testing.PB
+# example: hand out worklist items a slice at a time
+
+
+* atomic.Value
+
+	var (
+		configmu    sync.Mutex    // protects configvalue
+		configvalue *atomic.Value // value of map[string]string
+	)
+
+	func config() map[string]string {
+		return configvalue.Load().(map[string]string)
+	}
+
+	func set(key, val string) {
+		configmu.Lock()
+		defer configmu.Unlock()
+		old := config()
+		m := make(map[string]string, len(old)+1)
+		for k, v := old {
+			m[oldk] = oldv
+		}
+		m[k] = v
+		configvalue.Store(m)
+	}
+
+For frequently read but infrequently written data structures. Requires copy-on-write and writer synchronization (or a single writer). Danger of logical races.
+
+
+* atomic int and pointer operations
+
+	var count uint32
+
+	func inc() {
+		atomic.AddUint32(&count, 1)
+	}
+
+	func get() uint32 {
+		return atomic.LoadUint32(&count)
+	}
+
+Cheapest form of synchronization available in Go. Great caution required; very easy to misuse in subtle ways!
+
+Mostly helpful for cheap, scalable counters.
+
+If you use atomic.* with a value anywhere, you must use it everywhere!
+
+Special care required when using 64 bit integer sizes on 32 bit platforms. (Read: Don't do it.)
+
+
+* Avoid false sharing
+
+Usually solvable by rearrangement or padding.
+
+	type T [1024]Padded
+
+	type Padded struct {
+		mu sync.Mutex
+		x  *X
+		_  [128]byte
+	}
+
+Diagnose first; the medicine is bitter.
+
