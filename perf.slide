@@ -7,6 +7,10 @@ josharian@gmail.com
 
 # introduce myself, contributions to Go, etc.
 
+# TODO: Move code into files, make it executable, write benchmarks
+# TODO: say it all out loud, tweak it, run the code
+# TODO: figure out how to print out a guide in big font
+
 
 * Plan
 
@@ -22,6 +26,7 @@ josharian@gmail.com
 
 - Other kinds of optimization
 - Wrap-up and stump the chump
+
 
 
 * Introduction and philosophy
@@ -860,6 +865,20 @@ It's easy to thrash the filesystem, make lots of threads, and create churn in th
 # needed for cgo
 
 
+* Use buffered I/O
+
+Every read or write to a file corresponds to a system call. These are relatively expensive, particularly in high numbers.
+
+The `bufio` package makes buffered I/O easy. Use it.
+
+	f, err := os.Open("abc.txt")
+	// handle err
+	r := bufio.NewReader(f)
+
+# not really a concurrency thing, but we were talking about the filesystem
+# expensive because of concurrency support--not just a syscall, but also stack switches, scheduler interactions
+
+
 * Techniques
 
 - sync.RWMutex is only sometimes better than sync.Mutex.
@@ -867,6 +886,7 @@ It's easy to thrash the filesystem, make lots of threads, and create churn in th
 - Partition shared data structures.
 - Batch work to amortize cost of lock acquisition.
 - Use sync/atomic.
+- Cooperate with the scheduler
 - Avoid false sharing by padding data structures.
 
 
@@ -988,7 +1008,29 @@ Mostly helpful for cheap, scalable counters.
 
 If you use atomic.* with a value anywhere, you must use it everywhere!
 
-Special care required when using 64 bit integer sizes on 32 bit platforms. (Read: Don't do it.)
+Extra special care required when using 64 bit integer sizes on 32 bit platforms due to alignment requirements.
+
+
+* Cooperative scheduling
+
+Go scheduling is currently cooperative. It mostly just works, except for tight loops with no function calls.
+
+	var x int
+	for i := 0; i < 1<<30; i++ {
+		x = x ^ i
+	}
+
+Solution: Use runtime.Gosched()
+
+	var x int
+	for i := 0; i < 1<<30; i++ {
+		x = x ^ i
+		if i & 0xFFFF == 0xFFFF {
+			runtime.Gosched()
+		}
+	}
+
+# may be done automatically by future compilers
 
 
 * Avoid false sharing
@@ -1005,3 +1047,279 @@ Usually solvable by rearrangement or padding.
 
 Diagnose first; the medicine is bitter.
 
+
+* Advanced tools and techniques
+
+
+* Advanced tools and techniques
+
+- Compiler flags
+- Runtime flags and calls
+- Assembly and cgo
+- Code generation
+- Micro-optimizations
+
+
+* Compiler flags
+
+Use:
+
+	go build -gcflags=-S pkg
+
+Or:
+
+	go tool compile -S a.go b.go c.go
+
+# call out cmd/compile vs cmd/6g
+
+Important flags:
+
+	-h	help
+	-S	print assembly listing
+	-m	print optimization decisions such as escape analysis
+	-l	turn off inlining, repeat to make inlining more aggressive
+	-N	disable optimizations
+	-B	disable bounds checking
+
+# walk through these, demo them
+
+Demo
+
+# mainly you should know that these exist
+# if you find bad codegen: (a) maybe it is needed for correctness, (b) file a bug, (c) change your code
+
+
+* GODEBUG and GOGC
+
+Sample GODEBUG use:
+
+	GODEBUG=scheddetail=1,schedtrace=1000 go run x.go
+
+# but only one at a time, probably
+
+Useful GODEBUG variables for performance investigation:
+
+	allocfreetrace=1: print all allocs and frees (it's a lot!)
+	gctrace=1, gctrace=2: print GC activity
+	schedtrace=X: print scheduler state every X ms
+	scheddetail=1: print detailed scheduler state
+
+# allocfreetrace is voluminous but useful
+# gctrace I haven't needed
+# schedtrace eclipsed by trace viewer except Go 1.4 or if you can't edit the code or...
+
+Sample GOGC use:
+
+	GOGC=off go run x.go
+
+Or:
+
+	runtime.SetGCPercent(-1) // -1 for off, 50 for aggressive GC, 100 for default, 200 for lazy GC
+
+
+* cgo
+
+Plenty of rope.
+
+- overhead: stack switch and calling convention change
+- takes up a thread
+- medium chunks of work
+- cross-compilation is not trivial
+
+# need external linking, cross-compiler for C, etc.
+# useful (performance-wise) for access to optimized C libraries
+# but see also gonum, gccgo
+
+
+* Assembly
+
+Upgrade from rope to gun.
+
+- overhead: function call
+- dangerous
+- basically undocumented
+- small chunks of work (but not individual instructions)
+- not subject to Go 1 guarantee
+- go vet is helpful
+
+Useful when there is no other way.
+
+# extreme control, lots of opportunity for mistakes, loss of safety, not portable
+
+
+* Code generation
+
+# maybe not advanced topic
+
+Helpful for:
+
+- Avoiding the need for an abstraction layer (yes yes, generics)
+- Unrolling loops or calculations
+- Generating pre-calculated tables
+- Generating efficient code that is hard to read or maintain
+
+	const _Num_name = "OneTwo"
+
+	var _Num_index = [...]uint8{0, 3, 6}
+
+	func (i Num) String() string {
+		if i < 0 || i+1 >= Num(len(_Num_index)) {
+			return fmt.Sprintf("Num(%d)", i)
+		}
+		return _Num_name[_Num_index[i]:_Num_index[i+1]]
+	}
+
+* Micro-optimizations
+
+Knuth alert!
+
+- arrays instead of maps for lookups with small integer keys
+
+	var a = [10]string{2: "even prime", 9: "maybe prime"}
+	var m = map[int]string{2: "even prime", 9: "maybe prime"}
+
+- slice instead of map for very small quantities of data
+- manually unwind instead of using defer
+- index into slice instead of pointer in giant data structures
+
+# arrays: lookup is the same
+# slices: O(n) < O(1) when n is tiny and 1 is small
+# only ok to manually unwind if no one catches panics
+# helps reduce GC time
+
+Compiler dependent:
+
+- optimized memclear
+- rotate instruction: `i<<13`|`i>>(64-13)`
+
+
+* Other kinds of optimization
+
+- Binary size
+- Build time
+
+
+* Binary size
+
+# probably doesn't matter, but good to have options for when it does
+
+
+* go tool nm
+
+Helpful for finding large static data:
+
+	package main
+
+	var a [100000]int
+
+	func main() {
+		_ = a[0] // prevent the linker from dropping a
+	}
+
+Result:
+
+	$ go build bigarray.go && go tool nm -size -sort=size bigarray | head -n 4
+	   d47c0     800000 B main.a
+	   86140     152299 R runtime.pclntab
+	   4d220     124312 T runtime.etext
+	   4d220     124312 R type.*
+
+# go tool compile -w can help find the meaning of an autotmp, or ask on golang-nuts
+
+
+* Millions of strings
+
+The only way to get millions of strings is to generate them. If you're generating that many, generate them as a single string and slice as needed.
+
+	var nums = [...]string{"0", "1", "2", "3", "4", ..., "99999"}
+
+Binary size: 3471840 bytes
+
+	var nums = "0123...99999"
+
+Binary size: 1558960 bytes
+
+# note that this is what stringer does
+# note that first binary used to be 5mb+ in Go 1.4!
+# we should fix the toolchain. not as easy as it sounds.
+
+
+* ldflags
+
+Normal:
+
+	$ go build helloworld.go && stat -f "%N: %z bytes" helloworld
+	helloworld: 2344944 bytes
+
+Without DWARF:
+
+	$ go build -ldflags=-w helloworld.go && stat -f "%N: %z bytes" helloworld
+	helloworld: 1746928 bytes
+
+But you lose debug information.
+
+
+* Build time
+
+# worse with Go 1.5, will get better again
+
+
+* go install
+
+`go`build` builds and discards.
+`go`install` build and keeps.
+
+Use `go`install`.
+
+# biggest, easiest, most important fix
+# lots of staleness bugs fixed in Go 1.5
+
+
+* Enable caching of stable code
+
+The unit of compilation is the package.
+
+If you have a large, stable chunk of code (frequently a generated file containing assets), put it in a different package than high churn code. Use internal packages if you're worried about API visibility.
+
+
+* Split up giant functions
+
+This oughtn't matter. It does.
+
+Giant static data and tables can generate giant functions. (See previous slide.)
+
+One hack: Use multiple init functions.
+
+# this should get better in Go 1.6, I hope.
+# please file issues for egregious cases.
+
+
+* Wrap-up
+
+
+* Want more?
+
+- Read the standard library
+- Blog posts by Dmitry Vyukov and Russ Cox
+- Lurk on golang-codereviews@googlegroups.com (or even better, don't just lurk!)
+- Ask questions on golang-nuts
+- Experiment!
+
+
+* Experiment where?
+
+- Profile your own code. (But know when to stop.)
+- Pick an open source project. Find and fix a significant performance problem. (For all but the largest projects, there's usually at least one.)
+- Futz around with the standard library. (But remember that clarity and maintainability trumps speed.)
+
+
+* Reminders
+
+- Write simple, clear code
+- Write tests and use version control
+- Cheat (solve an easier problem instead)
+- Develop good habits
+- Know your tools and use them
+
+
+* Stump the chump
