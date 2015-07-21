@@ -21,6 +21,7 @@ josharian@gmail.com
 - Other kinds of optimization
 - Wrap-up and stump the chump
 
+.link http://10.10.32.101
 
 
 * Introduction and philosophy
@@ -365,7 +366,7 @@ In the general case, converting between string and []byte requires an alloc and 
 
 *[]byte*
 
-- slicing is very cheap but not always safe
+- slicing is very cheap but not obviously safe
 - append is sometimes expensive (sometimes alloc, always copy x 1, sometimes copy x 2)
 
 
@@ -409,7 +410,7 @@ Related: Implement WriteString for your io.Writers:
 If the set of choices is small, pick a string rather than building it.
 (Or use stringer: golang.org/x/tools/cmd/stringer.)
 
-# TODO: Example code with benchmark
+.play stringbytes/pick.go /BenchmarkConstruct/,/func _/
 
 
 * Order of operations
@@ -556,8 +557,9 @@ Develop good habits, profile, and benchmark.
 - Stack pressure vs heap
 - `-gcflags=-m`
 
-# Mostly, just know that it exists.
-# TODO: Ask folks to file issues?
+Mostly, just know that it exists and what it is.
+
+# open to improvements--file issues!
 
 
 * Good habits
@@ -658,23 +660,11 @@ But take care with large values.
 * Initial capacity estimates
 
 
-Delayed alloc, but multiple allocs:
+Delayed/multiple allocs vs exactly one alloc
 
-	var s []int
-	for i := 0; i < 100; i++ {
-		s = append(s, i)
-	}
-
-
-Exactly one alloc, up front:
-
-	s := make([]int, 0, 100)
-	for i := 0; i < 100; i++ {
-		s = append(s, i)
-	}
+.play alloc/initialcap.go /size/,/func _/
 
 # Disagreement over whether this is habit vs technique.
-# TODO: Insert a benchmark here demoing.
 
 
 * Pre-allocate backing array
