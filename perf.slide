@@ -16,14 +16,8 @@ josharian@gmail.com
 
 - Introduction and philosophy
 - Tools: Benchmarks, profiles
-
-- Break
-
 - Habits and techniques: string/[]byte, memory, concurrency
 - Advanced tools and techniques
-
-- Break
-
 - Other kinds of optimization
 - Wrap-up and stump the chump
 
@@ -46,6 +40,7 @@ josharian@gmail.com
 - Take it easy on abstraction (reflection, interfaces)
 
 "All problems in computer science can be solved by another level of indirection, except of course for the problem of too many indirections." - David Wheeler
+
 
 * Write good tests and use version control
 
@@ -93,6 +88,7 @@ Demo: package fib
 # full power of language at disposal
 # careful about which benchmarks you write
 # beware microbenchmarks
+
 
 * Tour of testing.B and 'go test' flags
 
@@ -161,7 +157,7 @@ Demo: fib
 # show basic usage: -cpuprofile, -outputdir
 # saves binary
 # don't run any tests, target individual benchmarks
-# -lines -pdf -nodecount=10 -focus=fib 
+# -lines -pdf -nodecount=10 -focus=fib
 # be careful about hiding things!
 # mention:
 #  can set CPU profiling rate
@@ -217,7 +213,7 @@ Demo: ngram
 In package `runtime/pprof`:
 
 - `goroutine`: helpful for finding sources of leaking goroutines
-- `threadcreate` helpful for debugging runaway thread creation (usually syscalls or cgo)
+- `threadcreate`: helpful for debugging runaway thread creation (usually syscalls or cgo)
 
 # TODO: Expand?
 
@@ -230,7 +226,7 @@ Basic memory stats available in package `runtime`: `ReadMemStats`
 
 Set up first thing in `func`main`.
 
-Use `runtime` and `runtime/pprof`...but it is a pain.
+Use runtime and runtime/pprof packages...but it is a pain.
 
 # Mention gotchas like flushing and closing the files,
 # calling runtime.GC before exit, etc.
@@ -252,15 +248,15 @@ And easy, using `net/http/pprof`.
 
 Use pprof to view CPU:
 
-	go tool pprof -pdf http://localhost:4001/debug/pprof/profile > o.pdf && open o.pdf
+	go tool pprof -pdf http://localhost:3999/debug/pprof/profile > o.pdf && open o.pdf
 
 Heap:
 
-	go tool pprof http://localhost:4001/debug/pprof/heap
+	go tool pprof http://localhost:3999/debug/pprof/heap
 
 Goroutines:
 
-	go tool pprof http://localhost:4001/debug/pprof/goroutine
+	go tool pprof http://localhost:3999/debug/pprof/goroutine
 
 See `net/http/pprof` docs.
 
@@ -269,7 +265,9 @@ See `net/http/pprof` docs.
 
 Demo: present
 
-	go tool pprof -pdf http://localhost:4001/debug/pprof/goroutine > o.pdf && open o.pdf
+.link http://localhost:3999/debug/pprof
+
+	go tool pprof -pdf http://localhost:3999/debug/pprof/goroutine > o.pdf && open o.pdf
 
 Oh goodness!
 
@@ -314,8 +312,6 @@ Demo: ngram
 
 # play with it and explore. I still am.
 
-
-* Break
 
 # switch to present14!
 
@@ -441,6 +437,14 @@ Design your APIs to allow reduced garbage.
 - Provide []byte and string variants.
 - Use io.Reader and io.Writer instead of buffers.
 - BYO buffer.
+
+Good:
+
+	Read(p []byte) (n int, err error)
+
+Bad:
+
+	Read(n int) (p []byte, err error)
 
 
 * Techniques
@@ -748,23 +752,23 @@ Go guarantees struct field alignment.
 	var i Inefficient
 	fmt.Println(unsafe.Sizeof(e), unsafe.Sizeof(i)) // 28 36
 
-# TODO: Turn into play program
+
+* Struct layout
+
+cmd/wasted:
+
+.link https://golang.org/cl/2179
+
+Unlikely to happen automatically:
+
+.link https://golang.org/issue/10014
+
+"No Go compiler should probably ever reorder struct fields. That seems like it is trying to solve a 1970s problem, namely packing structs to use as little space as possible. The 2010s problem is to put related fields near each other to reduce cache misses, and (unlike the 1970s problem) there is no obvious way for the compiler to pick an optimal solution. A compiler that takes that control away from the programmer is going to be that much less useful, and people will find better compilers." - Russ Cox
+
 # Discuss cache impact
 # Discuss GC impact of having pointers first
 # Mention gc compiler and Nodes
 # Mention runtime alloc size classes
-# golang.org/cl/2179
-# golang.org/issue/10014
-# Won't happen automatically:
-#	No Go compiler should probably ever reorder struct fields.
-#	That seems like it is trying to solve a 1970s problem,
-#	namely packing structs to use as little space as possible.
-#	The 2010s problem is to put related fields near each other to reduce cache misses,
-#	and (unlike the 1970s problem) there is no obvious way
-#	for the compiler to pick an optimal solution.
-#	A compiler that takes that control away from the programmer
-#	is going to be that much less useful,
-#	and people will find better compilers. - Russ Cox
 
 
 * Optimizing concurrent programs
@@ -883,6 +887,7 @@ The `bufio` package makes buffered I/O easy. Use it.
 
 - sync.RWMutex is only sometimes better than sync.Mutex.
 - Use buffered channels.
+- Provide backpressure or dropping.
 - Partition shared data structures.
 - Batch work to amortize cost of lock acquisition.
 - Use sync/atomic.
@@ -909,6 +914,11 @@ Buffered channels are much cheaper, if both semantics work for you.
 
 # discuss queueing theory: buffer size only provides a buffer
 # buffer sizes come at a memory cost
+
+
+* Provide backpressure or dropping
+
+Critical for operational stability of distributed services, but also useful for concurrency.
 
 
 * Partition shared data structures
@@ -1002,7 +1012,7 @@ For frequently read but infrequently written data structures. Requires copy-on-w
 		return atomic.LoadUint32(&count)
 	}
 
-Cheapest form of synchronization available in Go. Great caution required; very easy to misuse in subtle ways!
+Cheapest form of concurrency-safety available in Go. Great caution required; very easy to misuse in subtle ways!
 
 Mostly helpful for cheap, scalable counters.
 
